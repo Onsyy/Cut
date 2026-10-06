@@ -1,0 +1,755 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cut — calorie tracker</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#6B3FD4">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Cut">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F4F2F8; --surface:#FFFFFF; --ink:#26193A; --muted:#6E6480; --line:#E2DCEB;
+  --accent:#6B3FD4; --accent-soft:#EDE6FB; --over:#C8391E; --ok:#1F8A5B; --bar:#E7E1F1;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"Instrument Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16111F; --surface:#211A2E; --ink:#F0EAF9; --muted:#A79CB8; --line:#342A45;
+    --accent:#A98BFF; --accent-soft:#2E2345; --over:#FF7A5C; --ok:#4FD19A; --bar:#302642;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16111F; --surface:#211A2E; --ink:#F0EAF9; --muted:#A79CB8; --line:#342A45;
+  --accent:#A98BFF; --accent-soft:#2E2345; --over:#FF7A5C; --ok:#4FD19A; --bar:#302642;
+}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font:16px/1.5 var(--body);-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.app{max-width:1040px;margin:0 auto;padding:20px 18px 110px}
+header.top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:18px}
+.brand{font:800 26px/1 var(--display);letter-spacing:-.02em}
+.sync{font-size:13px;color:var(--muted)}
+
+nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);
+  display:flex;justify-content:center;gap:4px;padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px));z-index:10}
+nav.tabs button{flex:1;max-width:160px;border:0;background:none;padding:10px 6px;border-radius:12px;font-weight:600;color:var(--muted)}
+nav.tabs button[aria-selected="true"]{background:var(--accent-soft);color:var(--accent)}
+
+.grid{display:grid;gap:18px}
+@media (min-width:860px){
+  nav.tabs{display:none}
+  .app{padding-bottom:40px}
+  .grid{grid-template-columns:1.15fr 1fr;align-items:start}
+  .view{display:block!important}
+  .view-setup{grid-column:1 / -1}
+}
+.view{display:none}
+.view.active{display:block}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:20px}
+.panel + .panel{margin-top:18px}
+h2{font:700 20px/1.2 var(--display);margin:0 0 14px;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:14px;margin:0}
+
+/* Hero: remaining calories */
+.daynav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.daynav button{border:1px solid var(--line);background:none;border-radius:10px;width:38px;height:38px;font-size:18px}
+.daynav button:disabled{opacity:.35;cursor:default}
+.daylabel{font-weight:600}
+.remaining{font:800 clamp(64px,17vw,112px)/.9 var(--display);letter-spacing:-.045em;margin:14px 0 4px;font-variant-numeric:tabular-nums}
+.remaining.over{color:var(--over)}
+.remlabel{color:var(--muted);margin:0 0 18px}
+.meter{height:14px;background:var(--bar);border-radius:99px;overflow:hidden;position:relative}
+.meter i{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .35s ease}
+.meter.over i{background:var(--over)}
+.meterlegend{display:flex;justify-content:space-between;font-size:14px;color:var(--muted);margin-top:8px;font-variant-numeric:tabular-nums}
+
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;align-items:end;height:84px;margin-top:22px}
+.week div{display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}
+.week b{width:100%;max-width:28px;background:var(--bar);border-radius:6px 6px 3px 3px;min-height:3px}
+.week b.has{background:var(--accent);opacity:.55}
+.week b.hi{background:var(--over);opacity:.7}
+.week b.cur{opacity:1}
+.week span{font-size:12px;color:var(--muted)}
+.weekavg{font-size:14px;color:var(--muted);margin-top:10px}
+
+/* forms */
+form.add{display:grid;grid-template-columns:1fr 110px;gap:10px}
+form.add .full{grid-column:1 / -1}
+label{display:block;font-size:14px;color:var(--muted);margin-bottom:4px}
+input,select{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:11px 12px;min-height:46px}
+input:focus,select:focus{border-color:var(--accent);outline:none}
+.btn{border:0;background:var(--accent);color:#fff;border-radius:12px;padding:12px 16px;font-weight:600;min-height:46px}
+:root[data-theme="dark"] .btn:not(.ghost){color:#16111F}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn:not(.ghost){color:#16111F}}
+.btn.ghost{background:none;color:var(--accent);border:1px solid var(--line)}
+
+.scanbar{display:flex;gap:10px}
+.scanbar .btn{flex:1}
+.coderow{display:flex;gap:10px;margin-top:10px}
+.coderow input{flex:1;min-width:0}
+#scanner{margin-top:12px}
+#reader{width:100%;border-radius:14px;overflow:hidden;background:#000;margin-bottom:10px}
+#reader video{width:100%!important;height:auto!important;display:block}
+#scanner .btn{width:100%}
+.scanres{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;padding:14px;border:1px solid var(--line);border-radius:14px}
+.scanres .full{grid-column:1 / -1}
+.scanres .sub{margin:0}
+.airow{display:flex;gap:10px}
+.airow input{flex:1;min-width:0}
+.aistatus{font-size:14px;color:var(--muted);margin:8px 0 0;min-height:0}
+.aistatus:empty{display:none}
+ul.list.est{margin-top:10px}
+ul.list.est li input.nm{flex:1;min-width:0}
+ul.list.est li input.kc{width:88px;flex:none;text-align:right;font-weight:600}
+ul.list.est li .q{font-size:13px;color:var(--muted)}
+.aiactions{display:flex;align-items:center;gap:10px;padding-top:12px;border-top:1px solid var(--line)}
+.aiactions span{flex:1;font-weight:600;font-variant-numeric:tabular-nums}
+.or{font-size:14px;color:var(--muted);margin:18px 0 8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.chip{border:1px solid var(--line);background:var(--bg);border-radius:99px;padding:7px 12px;font-size:14px}
+.chip small{color:var(--muted);margin-left:4px}
+
+ul.list{list-style:none;margin:16px 0 0;padding:0}
+ul.list li{display:flex;align-items:center;gap:10px;padding:11px 0;border-top:1px solid var(--line)}
+ul.list li .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ul.list li .k{font-variant-numeric:tabular-nums;font-weight:600}
+ul.list li .x{border:0;background:none;color:var(--muted);font-size:20px;line-height:1;width:34px;height:34px;border-radius:8px}
+ul.list li .x:hover{background:var(--bg);color:var(--over)}
+.empty{color:var(--muted);font-size:14px;padding:14px 0 2px;border-top:1px solid var(--line);margin-top:16px}
+
+/* weight */
+.wstats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.wstats div{background:var(--bg);border-radius:14px;padding:12px}
+.wstats strong{display:block;font:700 22px/1.1 var(--display);font-variant-numeric:tabular-nums}
+.wstats span{font-size:13px;color:var(--muted)}
+.chartwrap{overflow-x:auto}
+svg.chart{width:100%;height:auto;display:block}
+form.wadd{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end}
+
+/* setup */
+.setupgrid{display:grid;gap:14px;grid-template-columns:repeat(2,1fr)}
+@media (min-width:860px){.setupgrid{grid-template-columns:repeat(4,1fr)}}
+.setupgrid .wide{grid-column:span 2}
+.seg{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:3px}
+.seg button{flex:1;border:0;background:none;border-radius:9px;padding:8px 4px;min-height:38px;font-weight:500;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+.calc{margin-top:18px;display:grid;gap:10px;grid-template-columns:repeat(2,1fr)}
+@media (min-width:860px){.calc{grid-template-columns:repeat(4,1fr)}}
+.calc div{border-left:3px solid var(--accent);padding:2px 0 2px 12px}
+.calc strong{display:block;font:700 22px/1.2 var(--display);font-variant-numeric:tabular-nums}
+.calc span{font-size:13px;color:var(--muted)}
+.note{margin-top:14px;font-size:14px;color:var(--muted)}
+.note.warn{color:var(--over)}
+.welcome{background:var(--accent-soft);border:0}
+.welcome p{margin:0}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+@media (min-width:860px){.toast{bottom:24px}}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">Cut</div>
+    <div class="sync" id="sync">Loading…</div>
+  </header>
+
+  <div class="grid">
+    <!-- TODAY -->
+    <section class="view view-today active" id="v-today">
+      <div class="panel welcome" id="welcome" hidden>
+        <p>Fill in your details under <strong>Setup</strong> first — your daily target is calculated from them.</p>
+      </div>
+      <div class="panel" id="hero">
+        <div class="daynav">
+          <button id="prevDay" aria-label="Previous day">‹</button>
+          <span class="daylabel" id="dayLabel">Today</span>
+          <button id="nextDay" aria-label="Next day">›</button>
+        </div>
+        <div class="remaining" id="remaining">—</div>
+        <p class="remlabel" id="remLabel">kcal left today</p>
+        <div class="meter" id="meter"><i style="width:0"></i></div>
+        <div class="meterlegend"><span id="eaten">0 eaten</span><span id="target">target —</span></div>
+        <div class="week" id="week" aria-label="Last 7 days"></div>
+        <div class="weekavg" id="weekAvg"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Log food</h2>
+        <div class="scanbar">
+          <button class="btn" type="button" id="scanBtn">Scan barcode</button>
+          <button class="btn ghost" type="button" id="codeBtn">Type barcode</button>
+        </div>
+        <form class="coderow" id="codeForm" hidden autocomplete="off">
+          <input id="codeIn" inputmode="numeric" pattern="[0-9]*" placeholder="Barcode number" maxlength="14" aria-label="Barcode number">
+          <button class="btn" type="submit">Look up</button>
+        </form>
+        <div id="scanner" hidden>
+          <div id="reader"></div>
+          <button class="btn ghost" type="button" id="scanStop">Cancel</button>
+        </div>
+        <p class="aistatus" id="scanStatus" role="status"></p>
+        <form class="scanres" id="scanRes" hidden autocomplete="off">
+          <div class="full"><label for="rName">Name</label><input id="rName" maxlength="60" required></div>
+          <div id="rAmtWrap"><label for="rAmt" id="rAmtLbl">Amount, g</label><input id="rAmt" type="number" inputmode="decimal" min="0" step="1"></div>
+          <div><label for="rKcal">kcal</label><input id="rKcal" type="number" inputmode="numeric" min="1" max="5000" required></div>
+          <p class="sub full" id="rInfo"></p>
+          <div class="aiactions full">
+            <span></span>
+            <button class="btn ghost" type="button" id="rCancel">Discard</button>
+            <button class="btn" type="submit" id="rAdd">Add</button>
+          </div>
+        </form>
+        <p class="or">Or enter it yourself</p>
+        <form class="add" id="addForm" autocomplete="off">
+          <div><label for="fName">What</label><input id="fName" placeholder="e.g. Chicken wrap" maxlength="60"></div>
+          <div><label for="fKcal">kcal</label><input id="fKcal" type="number" inputmode="numeric" min="1" max="5000" required></div>
+          <button class="btn full" type="submit">Add</button>
+        </form>
+        <div class="chips" id="quick"></div>
+        <ul class="list" id="entries"></ul>
+      </div>
+    </section>
+
+    <!-- WEIGHT -->
+    <section class="view view-weight" id="v-weight">
+      <div class="panel">
+        <h2>Weight</h2>
+        <div class="wstats">
+          <div><strong id="wNow">—</strong><span>7-day average</span></div>
+          <div><strong id="wChange">—</strong><span>Since start</span></div>
+          <div><strong id="wGoal">—</strong><span id="wGoalLbl">To goal</span></div>
+        </div>
+        <div class="chartwrap"><svg class="chart" id="chart" viewBox="0 0 400 180" role="img" aria-label="Weight over time"></svg></div>
+        <form class="wadd" id="wForm" style="margin-top:16px">
+          <div><label for="wDate">Date</label><input id="wDate" type="date"></div>
+          <div><label for="wKg">Weight, kg</label><input id="wKg" type="number" inputmode="decimal" step="0.1" min="30" max="300" required></div>
+          <button class="btn" type="submit">Log</button>
+        </form>
+        <p class="note">Weigh in the morning, after the toilet, before food. Daily numbers bounce around — the 7-day average is the one to watch.</p>
+        <ul class="list" id="wList"></ul>
+      </div>
+    </section>
+
+    <!-- SETUP -->
+    <section class="view view-setup" id="v-setup">
+      <div class="panel">
+        <h2>Setup</h2>
+        <p class="sub" style="margin-bottom:16px">Your target updates automatically as your logged weight changes.</p>
+        <div class="setupgrid">
+          <div class="wide"><label>Sex</label>
+            <div class="seg" id="sexSeg"><button type="button" data-v="m">Male</button><button type="button" data-v="f">Female</button></div></div>
+          <div><label for="sAge">Age</label><input id="sAge" type="number" inputmode="numeric" min="14" max="100"></div>
+          <div><label for="sHeight">Height, cm</label><input id="sHeight" type="number" inputmode="numeric" min="120" max="230"></div>
+          <div><label for="sWeight">Current weight, kg</label><input id="sWeight" type="number" inputmode="decimal" step="0.1" min="30" max="300"></div>
+          <div><label for="sGoal">Goal weight, kg</label><input id="sGoal" type="number" inputmode="decimal" step="0.1" min="30" max="300" placeholder="optional"></div>
+          <div class="wide"><label for="sAct">Activity</label>
+            <select id="sAct">
+              <option value="1.2">Mostly sitting, little exercise</option>
+              <option value="1.375">Light — training 1–3×/week</option>
+              <option value="1.55">Moderate — training 3–5×/week</option>
+              <option value="1.725">High — training 6–7×/week</option>
+              <option value="1.9">Very high — physical job + training</option>
+            </select></div>
+          <div class="wide"><label>Pace</label>
+            <div class="seg" id="paceSeg">
+              <button type="button" data-v="0.25">0.25 kg/wk</button><button type="button" data-v="0.5">0.5</button>
+              <button type="button" data-v="0.75">0.75</button><button type="button" data-v="1">1.0</button></div></div>
+        </div>
+        <div class="calc" id="calc"></div>
+        <p class="note" id="calcNote"></p>
+      </div>
+    </section>
+  </div>
+</div>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" data-t="today" aria-selected="true">Today</button>
+  <button role="tab" data-t="weight" aria-selected="false">Weight</button>
+  <button role="tab" data-t="setup" aria-selected="false">Setup</button>
+</nav>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="vendor/html5-qrcode.min.js"></script>
+<script>
+(function(){
+  const $ = s => document.querySelector(s);
+  const KCAL_PER_KG = 7700;
+
+  /* ---------- dates ---------- */
+  const pad = n => String(n).padStart(2,"0");
+  const iso = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+  const todayISO = () => iso(new Date());
+  const addDays = (s,n) => { const d = new Date(s+"T12:00:00"); d.setDate(d.getDate()+n); return iso(d); };
+  const fmtDay = s => {
+    if (s === todayISO()) return "Today";
+    if (s === addDays(todayISO(),-1)) return "Yesterday";
+    return new Date(s+"T12:00:00").toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"});
+  };
+  const short = s => new Date(s+"T12:00:00").toLocaleDateString("en-GB",{weekday:"narrow"});
+
+  /* ---------- storage: synced db, fallback to this device ---------- */
+  const store = {
+    mode: "local", db: null, uid: null, chains: {},
+    ref(key){ return this.db.doc("data/users/"+this.uid+"/"+key); },
+    async get(key){
+      if (this.mode === "db") {
+        try { const s = await this.ref(key).get(); return s.exists ? s.data() : null; } catch(e){ return null; }
+      }
+      try { const v = localStorage.getItem("cut:"+key); return v ? JSON.parse(v) : null; } catch(e){ return null; }
+    },
+    set(key, val){
+      const run = async () => {
+        if (this.mode === "db") {
+          try { await this.ref(key).set(val); }
+          catch(e){
+            if (e && e.code === "unavailable") { await new Promise(r=>setTimeout(r,400+Math.random()*600)); await this.ref(key).set(val); }
+            else { toast("Couldn't save — check your connection"); }
+          }
+        } else {
+          try { localStorage.setItem("cut:"+key, JSON.stringify(val)); } catch(e){}
+        }
+      };
+      this.chains[key] = (this.chains[key] || Promise.resolve()).then(run, run);
+      return this.chains[key];
+    },
+    watch(key, fn){
+      if (this.mode !== "db") return () => {};
+      return this.ref(key).onSnapshot(s => { if (!s.metadata.hasPendingWrites) fn(s.exists ? s.data() : null); }, () => {});
+    }
+  };
+
+  /* ---------- state ---------- */
+  const state = {
+    profile: { sex:null, age:null, height:null, weight:null, goal:null, act:1.375, pace:0.5 },
+    weights: [],           // [{d, kg}]
+    foods: [],             // [{name, kcal, n}] quick-add history
+    codes: {},             // barcode -> {name, kcal100, amount, unit, kcal}
+    day: todayISO(),
+    items: [],             // entries for state.day
+    weekCache: {}          // iso -> total kcal
+  };
+
+  /* ---------- calculations ---------- */
+  function latestWeight(){
+    if (state.weights.length) return state.weights[state.weights.length-1].kg;
+    return state.profile.weight;
+  }
+  function avg7(){
+    if (!state.weights.length) return state.profile.weight || null;
+    const last = state.weights[state.weights.length-1].d;
+    const from = addDays(last,-6);
+    const w = state.weights.filter(x => x.d >= from);
+    return w.reduce((a,b)=>a+b.kg,0)/w.length;
+  }
+  function calc(){
+    const p = state.profile, w = avg7() || latestWeight();
+    if (!p.sex || !p.age || !p.height || !w) return null;
+    const bmr = 10*w + 6.25*p.height - 5*p.age + (p.sex === "m" ? 5 : -161);
+    const tdee = bmr * Number(p.act);
+    // cap the deficit at ~1% of bodyweight per week
+    const maxRate = w * 0.01;
+    const rate = Math.min(Number(p.pace), maxRate);
+    const deficit = rate * KCAL_PER_KG / 7;
+    const floor = p.sex === "m" ? 1500 : 1200;
+    let target = tdee - deficit, floored = false;
+    if (target < floor) { target = floor; floored = true; }
+    const realRate = (tdee - target) * 7 / KCAL_PER_KG;
+    return { bmr, tdee, target: Math.round(target/10)*10, rate: realRate, capped: rate < Number(p.pace), floored, w };
+  }
+
+  /* ---------- rendering ---------- */
+  function renderToday(){
+    const c = calc();
+    const eaten = state.items.reduce((a,b)=>a+b.kcal,0);
+    $("#welcome").hidden = !!c;
+    $("#dayLabel").textContent = fmtDay(state.day);
+    $("#nextDay").disabled = state.day >= todayISO();
+    const meter = $("#meter"), rem = $("#remaining");
+    if (c) {
+      const left = c.target - eaten;
+      rem.textContent = Math.abs(left).toLocaleString("en-US");
+      rem.classList.toggle("over", left < 0);
+      $("#remLabel").textContent = left < 0 ? "kcal over target" : (state.day === todayISO() ? "kcal left today" : "kcal left that day");
+      meter.classList.toggle("over", left < 0);
+      meter.firstElementChild.style.width = Math.min(100, eaten / c.target * 100) + "%";
+      $("#target").textContent = "target " + c.target.toLocaleString("en-US");
+    } else {
+      rem.textContent = "—"; rem.classList.remove("over");
+      $("#remLabel").textContent = "set up your profile to get a target";
+      meter.firstElementChild.style.width = "0";
+      $("#target").textContent = "target —";
+    }
+    $("#eaten").textContent = eaten.toLocaleString("en-US") + " eaten";
+
+    const ul = $("#entries"); ul.innerHTML = "";
+    if (!state.items.length) {
+      const p = document.createElement("div"); p.className = "empty";
+      p.textContent = "Nothing logged yet. Add your first meal above.";
+      ul.appendChild(p);
+    }
+    [...state.items].reverse().forEach(it => {
+      const li = document.createElement("li");
+      const n = document.createElement("span"); n.className = "n"; n.textContent = it.name || "Food";
+      const k = document.createElement("span"); k.className = "k"; k.textContent = it.kcal;
+      const x = document.createElement("button"); x.className = "x"; x.textContent = "×"; x.setAttribute("aria-label","Remove "+(it.name||"entry"));
+      x.onclick = () => { state.items = state.items.filter(i => i.id !== it.id); saveDay(); renderToday(); };
+      li.append(n,k,x); ul.appendChild(li);
+    });
+    renderQuick();
+    renderWeek();
+  }
+
+  function renderQuick(){
+    const box = $("#quick"); box.innerHTML = "";
+    state.foods.slice(0,8).forEach(f => {
+      const b = document.createElement("button"); b.className = "chip"; b.type = "button";
+      b.textContent = f.name; const s = document.createElement("small"); s.textContent = f.kcal; b.appendChild(s);
+      b.onclick = () => addItem(f.name, f.kcal);
+      box.appendChild(b);
+    });
+  }
+
+  function renderWeek(){
+    const c = calc(), wk = $("#week"); wk.innerHTML = "";
+    state.weekCache[state.day] = state.items.reduce((a,b)=>a+b.kcal,0);
+    const days = []; for (let i=6;i>=0;i--) days.push(addDays(state.day,-i));
+    const vals = days.map(d => state.weekCache[d] || 0);
+    const max = Math.max(...vals, c ? c.target*1.2 : 2500);
+    days.forEach((d,i) => {
+      const col = document.createElement("div");
+      const b = document.createElement("b"); const v = vals[i];
+      b.style.height = Math.max(3, v/max*64) + "px";
+      if (v) b.classList.add(c && v > c.target ? "hi" : "has");
+      if (d === state.day) b.classList.add("cur");
+      b.title = fmtDay(d)+": "+v+" kcal";
+      const l = document.createElement("span"); l.textContent = short(d);
+      col.append(b,l); wk.appendChild(col);
+    });
+    const logged = vals.filter(v=>v>0);
+    if (logged.length >= 2) {
+      const a = Math.round(logged.reduce((x,y)=>x+y,0)/logged.length);
+      $("#weekAvg").textContent = "Average over " + logged.length + " logged days: " + a.toLocaleString("en-US") + " kcal" + (c ? " (target " + c.target.toLocaleString("en-US") + ")" : "");
+    } else $("#weekAvg").textContent = "";
+  }
+
+  function renderWeight(){
+    const ws = state.weights, p = state.profile;
+    const a = avg7();
+    $("#wNow").textContent = a ? a.toFixed(1) : "—";
+    const start = ws.length ? ws[0].kg : p.weight;
+    if (a && start && ws.length) {
+      const d = a - start; $("#wChange").textContent = (d>0?"+":"") + d.toFixed(1);
+    } else $("#wChange").textContent = "—";
+    const c = calc();
+    if (p.goal && a) {
+      const left = a - p.goal;
+      if (left <= 0) { $("#wGoal").textContent = "Done"; $("#wGoalLbl").textContent = "Goal reached"; }
+      else {
+        $("#wGoal").textContent = left.toFixed(1);
+        $("#wGoalLbl").textContent = c && c.rate > 0 ? "kg to go, ~" + Math.ceil(left / c.rate) + " wk" : "kg to go";
+      }
+    } else { $("#wGoal").textContent = "—"; $("#wGoalLbl").textContent = "Set a goal in Setup"; }
+
+    drawChart();
+    const ul = $("#wList"); ul.innerHTML = "";
+    [...ws].reverse().slice(0,14).forEach(w => {
+      const li = document.createElement("li");
+      const n = document.createElement("span"); n.className = "n"; n.textContent = fmtDay(w.d);
+      const k = document.createElement("span"); k.className = "k"; k.textContent = w.kg.toFixed(1) + " kg";
+      const x = document.createElement("button"); x.className = "x"; x.textContent = "×"; x.setAttribute("aria-label","Remove weigh-in");
+      x.onclick = () => { state.weights = state.weights.filter(i => i.d !== w.d); store.set("weights",{list:state.weights}); renderAll(); };
+      li.append(n,k,x); ul.appendChild(li);
+    });
+  }
+
+  function drawChart(){
+    const svg = $("#chart"), ws = state.weights.slice(-60);
+    const W = 400, H = 180, L = 34, R = 8, T = 12, B = 22;
+    const css = getComputedStyle(document.documentElement);
+    const col = n => css.getPropertyValue(n).trim();
+    if (ws.length < 2) {
+      svg.innerHTML = '<text x="200" y="95" text-anchor="middle" font-size="13" fill="'+col("--muted")+'">Log at least two weigh-ins to see the trend</text>';
+      return;
+    }
+    const t0 = new Date(ws[0].d+"T12:00:00").getTime(), t1 = new Date(ws[ws.length-1].d+"T12:00:00").getTime();
+    const span = Math.max(1, t1 - t0);
+    let lo = Math.min(...ws.map(w=>w.kg)), hi = Math.max(...ws.map(w=>w.kg));
+    if (state.profile.goal && state.profile.goal > lo - 3) lo = Math.min(lo, state.profile.goal);
+    lo = Math.floor(lo - .5); hi = Math.ceil(hi + .5);
+    const x = d => L + (new Date(d+"T12:00:00").getTime() - t0) / span * (W-L-R);
+    const y = kg => T + (hi - kg) / (hi - lo) * (H-T-B);
+    let out = "";
+    const steps = 4;
+    for (let i=0;i<=steps;i++){
+      const v = lo + (hi-lo)*i/steps, yy = y(v);
+      out += '<line x1="'+L+'" x2="'+(W-R)+'" y1="'+yy+'" y2="'+yy+'" stroke="'+col("--line")+'" stroke-width="1"/>';
+      out += '<text x="'+(L-6)+'" y="'+(yy+4)+'" text-anchor="end" font-size="10" fill="'+col("--muted")+'">'+v.toFixed(0)+'</text>';
+    }
+    if (state.profile.goal && state.profile.goal >= lo && state.profile.goal <= hi) {
+      const gy = y(state.profile.goal);
+      out += '<line x1="'+L+'" x2="'+(W-R)+'" y1="'+gy+'" y2="'+gy+'" stroke="'+col("--ok")+'" stroke-dasharray="4 4" stroke-width="1.5"/>';
+      out += '<text x="'+(W-R)+'" y="'+(gy-5)+'" text-anchor="end" font-size="10" fill="'+col("--ok")+'">goal</text>';
+    }
+    ws.forEach(w => { out += '<circle cx="'+x(w.d)+'" cy="'+y(w.kg)+'" r="2.6" fill="'+col("--muted")+'" opacity=".55"/>'; });
+    // 7-day rolling average
+    const pts = ws.map(w => {
+      const from = addDays(w.d,-6), win = ws.filter(v => v.d >= from && v.d <= w.d);
+      return [x(w.d), y(win.reduce((a,b)=>a+b.kg,0)/win.length)];
+    });
+    out += '<polyline fill="none" stroke="'+col("--accent")+'" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" points="'+pts.map(p=>p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ")+'"/>';
+    out += '<text x="'+L+'" y="'+(H-6)+'" font-size="10" fill="'+col("--muted")+'">'+fmtDay(ws[0].d)+'</text>';
+    out += '<text x="'+(W-R)+'" y="'+(H-6)+'" text-anchor="end" font-size="10" fill="'+col("--muted")+'">'+fmtDay(ws[ws.length-1].d)+'</text>';
+    svg.innerHTML = out;
+  }
+
+  function renderSetup(){
+    const p = state.profile;
+    document.querySelectorAll("#sexSeg button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === p.sex)));
+    document.querySelectorAll("#paceSeg button").forEach(b => b.setAttribute("aria-pressed", String(Number(b.dataset.v) === Number(p.pace))));
+    const setIf = (id,v) => { const el = $(id); if (document.activeElement !== el) el.value = v ?? ""; };
+    setIf("#sAge",p.age); setIf("#sHeight",p.height); setIf("#sWeight",p.weight); setIf("#sGoal",p.goal);
+    $("#sAct").value = String(p.act);
+    const c = calc(), box = $("#calc"), note = $("#calcNote");
+    if (!c) { box.innerHTML = ""; note.className = "note"; note.textContent = "Fill in sex, age, height and weight to calculate your target."; return; }
+    const cell = (v,l) => '<div><strong>'+v+'</strong><span>'+l+'</span></div>';
+    box.innerHTML = cell(Math.round(c.bmr).toLocaleString("en-US"),"BMR, kcal") + cell(Math.round(c.tdee).toLocaleString("en-US"),"Maintenance, kcal")
+      + cell(c.target.toLocaleString("en-US"),"Daily target, kcal") + cell(c.rate.toFixed(2),"Expected kg/week");
+    const msgs = [];
+    if (c.capped) msgs.push("Pace capped at ~1% of bodyweight per week to protect muscle.");
+    if (c.floored) msgs.push("Target held at the minimum of " + (state.profile.sex==="m"?1500:1200) + " kcal — going lower isn't recommended without medical supervision.");
+    if (state.weights.length) msgs.push("Based on your 7-day average weight of " + c.w.toFixed(1) + " kg.");
+    note.className = "note" + (c.capped || c.floored ? " warn" : "");
+    note.textContent = msgs.join(" ") || "Maintenance is an estimate. If your weekly average hasn't moved after 2–3 weeks, lower your activity level one step.";
+  }
+
+  function renderAll(){ renderToday(); renderWeight(); renderSetup(); }
+
+  /* ---------- actions ---------- */
+  let toastT;
+  function toast(msg){ const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove("show"), 1800); }
+
+  function saveDay(){ store.set("day-"+state.day, {items: state.items}); }
+
+  function addItem(name, kcal, silent){
+    kcal = Math.round(Number(kcal));
+    if (!kcal || kcal < 1) return;
+    name = (name || "").trim();
+    state.items.push({ id: Date.now().toString(36)+Math.random().toString(36).slice(2,6), name, kcal });
+    saveDay();
+    if (name) {
+      const key = name.toLowerCase();
+      const ex = state.foods.find(f => f.name.toLowerCase() === key && f.kcal === kcal);
+      if (ex) ex.n++; else state.foods.push({ name, kcal, n: 1 });
+      state.foods.sort((a,b) => b.n - a.n);
+      state.foods = state.foods.slice(0,30);
+      store.set("foods", {list: state.foods});
+    }
+    if (!silent) { renderToday(); toast("Added " + kcal + " kcal"); }
+  }
+
+  /* ---------- barcode scan + Open Food Facts ---------- */
+  let scanner = null, cur = null; // cur = {code, kcal100}
+  const scanStatus = t => { $("#scanStatus").textContent = t || ""; };
+
+  async function startScan(){
+    if (typeof Html5Qrcode === "undefined") { scanStatus("Scanner didn't load. Type the barcode instead."); showCodeForm(); return; }
+    closeResult(); $("#codeForm").hidden = true;
+    $("#scanner").hidden = false; scanStatus("Point the camera at the barcode.");
+    try {
+      const F = Html5QrcodeSupportedFormats;
+      scanner = scanner || new Html5Qrcode("reader", {
+        formatsToSupport: [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E], verbose: false,
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+      });
+      await scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 260, height: 140 } },
+        async code => { await stopScan(); lookup(code); }, () => {});
+    } catch (e) {
+      $("#scanner").hidden = true;
+      scanStatus("Couldn't open the camera. Allow camera access in your browser settings, or type the barcode.");
+      showCodeForm();
+    }
+  }
+  async function stopScan(){
+    $("#scanner").hidden = true;
+    if (scanner) { try { if (scanner.isScanning) await scanner.stop(); } catch(e){} }
+  }
+  function showCodeForm(){ $("#codeForm").hidden = false; $("#codeIn").focus(); }
+
+  function productName(p){
+    const n = p.product_name_lv || p.product_name_en || p.product_name || "";
+    const b = (p.brands || "").split(",")[0].trim();
+    return (b && n && !n.toLowerCase().includes(b.toLowerCase()) ? b + " " + n : (n || b)).slice(0,60);
+  }
+
+  async function lookup(code){
+    code = String(code).replace(/\D/g,"");
+    if (code.length < 8) { scanStatus("That barcode looks too short. Check the number."); return; }
+    $("#codeForm").hidden = true;
+    const saved = state.codes[code];
+    if (saved) { openResult(code, saved.name, saved.kcal100, saved.amount, saved.unit, saved.kcal, "From your saved items."); scanStatus(""); return; }
+    scanStatus("Looking up " + code + "…");
+    let p = null, failed = false;
+    try {
+      const r = await fetch("https://world.openfoodfacts.org/api/v2/product/" + code + ".json?fields=product_name,product_name_lv,product_name_en,brands,nutriments,serving_quantity,product_quantity,product_quantity_unit");
+      if (r.ok) { const j = await r.json(); if (j && j.status === 1 && j.product) p = j.product; }
+      else if (r.status !== 404) failed = true;
+    } catch(e){ failed = true; }
+    scanStatus("");
+    if (p) {
+      const n = p.nutriments || {};
+      let k100 = Number(n["energy-kcal_100g"]);
+      if (!k100 && n["energy_100g"]) k100 = Number(n["energy_100g"]) / 4.184;
+      k100 = k100 > 0 ? k100 : null;
+      const unit = (p.product_quantity_unit || "").toLowerCase() === "ml" ? "ml" : "g";
+      const amt = Number(p.serving_quantity) || Number(p.product_quantity) || 100;
+      if (k100) { openResult(code, productName(p), k100, amt, unit, null, "Found: " + Math.round(k100) + " kcal per 100 " + unit + ". Adjust the amount you had."); return; }
+      openResult(code, productName(p), null, null, unit, null, "Found the product, but it has no calories listed. Enter them from the label; it'll be remembered next time.");
+      return;
+    }
+    openResult(code, "", null, null, "g", null, failed
+      ? "Couldn't reach the food database. Enter it from the label; it'll be remembered next time."
+      : "Not in the database. Enter it from the label; it'll be remembered next time.");
+  }
+
+  function openResult(code, name, k100, amount, unit, kcal, info){
+    cur = { code, k100, unit };
+    $("#scanRes").hidden = false;
+    $("#rName").value = name || "";
+    $("#rAmtWrap").hidden = !k100;
+    $("#rAmtLbl").textContent = "Amount, " + unit;
+    $("#rAmt").value = k100 ? Math.round(amount || 100) : "";
+    $("#rKcal").value = kcal != null ? kcal : (k100 ? Math.round(k100 * (amount || 100) / 100) : "");
+    $("#rInfo").textContent = info || "";
+    (name ? (k100 ? $("#rAmt") : $("#rKcal")) : $("#rName")).focus();
+  }
+  function closeResult(){ $("#scanRes").hidden = true; cur = null; }
+
+  $("#rAmt").addEventListener("input", () => {
+    if (cur && cur.k100) { const a = Number($("#rAmt").value) || 0; $("#rKcal").value = a ? Math.round(cur.k100 * a / 100) : ""; }
+  });
+  $("#scanRes").addEventListener("submit", e => {
+    e.preventDefault();
+    if (!cur) return;
+    const name = $("#rName").value.trim(), kcal = Math.round(Number($("#rKcal").value));
+    if (!name || !kcal) return;
+    const amount = cur.k100 ? Number($("#rAmt").value) || null : null;
+    state.codes[cur.code] = { name, kcal100: cur.k100, amount, unit: cur.unit, kcal };
+    store.set("codes", state.codes);
+    addItem(name, kcal);
+    closeResult();
+  });
+  $("#rCancel").onclick = closeResult;
+  $("#scanBtn").onclick = startScan;
+  $("#scanStop").onclick = () => { stopScan(); scanStatus(""); };
+  $("#codeBtn").onclick = () => { stopScan(); closeResult(); scanStatus(""); const f = $("#codeForm"); f.hidden = !f.hidden; if (!f.hidden) $("#codeIn").focus(); };
+  $("#codeForm").addEventListener("submit", e => { e.preventDefault(); lookup($("#codeIn").value); $("#codeIn").value = ""; });
+
+  if ("serviceWorker" in navigator && location.protocol === "https:") {
+    window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  }
+
+  $("#addForm").addEventListener("submit", e => {
+    e.preventDefault();
+    addItem($("#fName").value, $("#fKcal").value);
+    $("#fName").value = ""; $("#fKcal").value = ""; $("#fName").focus();
+  });
+
+  $("#wDate").value = todayISO();
+  $("#wDate").max = todayISO();
+  $("#wForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const d = $("#wDate").value || todayISO(), kg = Number($("#wKg").value);
+    if (!kg) return;
+    state.weights = state.weights.filter(w => w.d !== d);
+    state.weights.push({ d, kg: Math.round(kg*10)/10 });
+    state.weights.sort((a,b) => a.d < b.d ? -1 : 1);
+    store.set("weights", {list: state.weights});
+    $("#wKg").value = "";
+    renderAll();
+    toast("Weight logged");
+  });
+
+  let profT;
+  function saveProfile(){ clearTimeout(profT); profT = setTimeout(() => store.set("profile", state.profile), 500); renderAll(); }
+  const num = v => v === "" ? null : Number(v);
+  [["#sAge","age"],["#sHeight","height"],["#sWeight","weight"],["#sGoal","goal"]].forEach(([id,k]) =>
+    $(id).addEventListener("input", e => { state.profile[k] = num(e.target.value); saveProfile(); }));
+  $("#sAct").addEventListener("change", e => { state.profile.act = Number(e.target.value); saveProfile(); });
+  $("#sexSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; state.profile.sex = b.dataset.v; saveProfile(); });
+  $("#paceSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; state.profile.pace = Number(b.dataset.v); saveProfile(); });
+
+  document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => {
+    document.querySelectorAll("nav.tabs button").forEach(x => x.setAttribute("aria-selected", String(x === b)));
+    document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === "v-"+b.dataset.t));
+    window.scrollTo(0,0);
+  }));
+
+  /* ---------- day loading ---------- */
+  let unDay = () => {};
+  async function loadDay(d){
+    state.day = d;
+    unDay();
+    const v = await store.get("day-"+d);
+    if (state.day !== d) return;
+    state.items = (v && Array.isArray(v.items)) ? v.items : [];
+    renderToday();
+    unDay = store.watch("day-"+d, v => { if (state.day !== d) return; state.items = (v && v.items) || []; renderToday(); });
+    loadWeek(d);
+  }
+  async function loadWeek(d){
+    const days = []; for (let i=1;i<=6;i++) days.push(addDays(d,-i));
+    const need = days.filter(x => !(x in state.weekCache));
+    const res = await Promise.all(need.map(x => store.get("day-"+x)));
+    need.forEach((x,i) => { state.weekCache[x] = res[i] && res[i].items ? res[i].items.reduce((a,b)=>a+b.kcal,0) : 0; });
+    if (state.day === d) renderWeek();
+  }
+  $("#prevDay").onclick = () => loadDay(addDays(state.day,-1));
+  $("#nextDay").onclick = () => { if (state.day < todayISO()) loadDay(addDays(state.day,1)); };
+
+  /* ---------- boot ---------- */
+  async function loadAll(){
+    const [p, w, f, c] = await Promise.all([store.get("profile"), store.get("weights"), store.get("foods"), store.get("codes")]);
+    if (c && typeof c === "object") state.codes = c;
+    if (p) Object.assign(state.profile, p);
+    if (w && Array.isArray(w.list)) state.weights = w.list;
+    if (f && Array.isArray(f.list)) state.foods = f.list;
+    await loadDay(todayISO());
+    renderAll();
+  }
+
+  renderAll();
+
+  $("#sync").textContent = "Saved on this device";
+  loadAll();
+
+  // roll over to the new day if the tab stays open past midnight
+  let lastSeen = todayISO();
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && todayISO() !== lastSeen) {
+      const wasToday = state.day === lastSeen; lastSeen = todayISO();
+      $("#wDate").max = lastSeen;
+      if (wasToday) loadDay(lastSeen);
+    }
+  });
+})();
+</script>
+</body>
+</html>
